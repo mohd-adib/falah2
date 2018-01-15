@@ -1,44 +1,56 @@
 # config valid for current version and patch releases of Capistrano
 lock "~> 3.10.1"
 
-set :application, "falah"
-set :repo_url, "git@github.com:mohd-adib/falah.git"
+set :application, "toy_app"
+set :repo_url, "git@github.com:mohd-adib/toy_app.git"
+set :rails_env, 'production'
+# server '35.197.136.5', user: "root", roles: %w{app db web}, primary: true
+server '35.186.159.184', user: "deployer", roles: %w{app db web}, primary: true
 
-# Default branch is :master
-# ask :branch, `git rev-parse --abbrev-ref HEAD`.chomp
+set :deploy_to,       "/home/deployer/apps/#{fetch(:application)}"
+set :pty, true
 
-# Default deploy_to directory is /var/www/my_app_name
-set :deploy_to, "/home/deploy/falah"
+set :linked_files, fetch(:linked_files, []).push('config/database.yml', 'config/secrets.yml')
+# set :linked_files, fetch(:linked_files, []).push('config/database.yml', 'config/secrets.yml', 'config/puma.rb')
+set :linked_dirs, fetch(:linked_dirs, []).push('log', 'tmp/pids', 'tmp/cache', 'tmp/sockets', 'vendor/bundle', 'public/system', 'public/uploads')
 
-set :stage,           :production
+set :config_example_suffix, '.example'
+set :config_files, %w{config/database.yml config/secrets.yml}
+set :puma_conf, "#{shared_path}/config/puma.rb"
+set :rvm_map_bins, %w{gem rake ruby rails bundle puma pumactl}
+set :rvm_ruby_version, '2.5.0'
+# set :format_options, log_file: "storage/logs/capistrano.log"
+set :linked_dirs, %w{tmp/pids tmp/sockets log}
+
+set :puma_jungle_conf, '/etc/puma.conf'
+set :puma_run_path, '/usr/local/bin/run-puma'
+
+set :puma_state, "#{shared_path}/tmp/pids/puma.state"
+set :puma_pid, "#{shared_path}/tmp/pids/puma.pid"
+set :puma_bind, "unix://#{shared_path}/tmp/sockets/puma.sock"
+set :puma_conf, "#{shared_path}/puma.rb"
+set :puma_access_log, "#{shared_path}/log/puma_error.log"
+set :puma_error_log, "#{shared_path}/log/puma_access.log"
+set :puma_role, :app
+set :puma_env, fetch(:rack_env, fetch(:rails_env, 'production'))
+set :puma_threads, [0, 16]
+set :puma_workers, 0
+set :puma_init_active_record, false
 
 
-append :linked_files, "config/database.yml", "config/secrets.yml"
-append :linked_dirs, "log", "tmp/pids", "tmp/cache", "tmp/sockets", "vendor/bundle", "public/system", "public/uploads"
-# Default value for :format is :airbrussh.
-# set :format, :airbrussh
+namespace :logs do
+  desc "tail rails logs" 
+  task :tail_rails do
+    on roles(:app) do
+      execute "tail -f #{shared_path}/log/#{fetch(:rails_env)}.log"
+    end
+  end
+end
 
-# You can configure the Airbrussh format using :format_options.
-# These are the defaults.
-# set :format_options, command_output: true, log_file: "log/capistrano.log", color: :auto, truncate: :auto
-
-# Default value for :pty is false
-# set :pty, true
-
-# Default value for :linked_files is []
-# append :linked_files, "config/database.yml", "config/secrets.yml"
-
-# Default value for linked_dirs is []
-# append :linked_dirs, "log", "tmp/pids", "tmp/cache", "tmp/sockets", "public/system"
-
-# Default value for default_env is {}
-# set :default_env, { path: "/opt/ruby/bin:$PATH" }
-
-# Default value for local_user is ENV['USER']
-# set :local_user, -> { `git config user.name`.chomp }
-
-# Default value for keep_releases is 5
-# set :keep_releases, 5
-
-# Uncomment the following to require manually verifying the host key before first deploy.
-# set :ssh_options, verify_host_key: :secure
+namespace :deploy do
+  before 'check:linked_files', 'config:push'
+  before 'check:linked_files', 'puma:config'
+  before 'check:linked_files', 'puma:nginx_config'
+  before 'deploy:migrate', 'deploy:db:create'
+  after 'puma:smart_restart', 'nginx:restart'
+end
