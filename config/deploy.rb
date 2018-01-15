@@ -2,7 +2,7 @@
 lock "~> 3.10.1"
 
 set :application, "falah"
-set :repo_url, "git@github.com:mohd-adib/falah.git"
+set :repo_url, "git@github.com:mohd-adib/falah2.git"
 set :rails_env, 'production'
 # server '35.197.136.5', user: "root", roles: %w{app db web}, primary: true
 server '35.186.159.184', user: "root", roles: %w{app db web}, primary: true
